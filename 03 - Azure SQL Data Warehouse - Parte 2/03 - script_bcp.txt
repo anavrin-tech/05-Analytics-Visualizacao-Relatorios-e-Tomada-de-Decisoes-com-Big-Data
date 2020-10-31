@@ -1,0 +1,46 @@
+/* Criando tabela */
+
+/* Não esquecer de criar regra no firewall do Azure para permitir conexão /*
+/* Substitua os valores dos parâmetros abaixo: servidor, banco de dados, usuário e senha /*
+
+sqlcmd.exe -S "datascienceacademy.database.windows.net" -d "AdventureWorksDW" -U "administrador" -P "Adm2018DSA" -I
+
+GO
+
+CREATE TABLE DimDate2
+(
+   DateId INT NOT NULL,
+   CalendarQuarter TINYINT NOT NULL,
+   FiscalQuarter TINYINT NOT NULL
+)
+WITH
+(
+   CLUSTERED COLUMNSTORE INDEX,
+   DISTRIBUTION = ROUND_ROBIN
+);
+
+GO
+
+/* Fazendo um select na tabela */
+
+SELECT * FROM DimDate2
+
+/* Importando dados */
+/* Executar em outra janela de terminal /*
+
+bcp DimDate2 in C:\tmp\DimDate2.txt -S "datascienceacademy.database.windows.net" -d "AdventureWorksDW" -U "administrador" -P "Adm2018DSA" -q -c -t ","
+
+--------------
+
+/* Consultando dados */
+
+SELECT * FROM DimDate2 ORDER BY 1
+go
+
+---------------
+
+/* Exportando dados */
+
+bcp DimDate2 out C:\tmp\DimDate2_exportado.txt -S "datascienceacademy.database.windows.net" -d "AdventureWorksDW" -U "administrador" -P "Adm2018DSA" -q -c -t ';'
+
+

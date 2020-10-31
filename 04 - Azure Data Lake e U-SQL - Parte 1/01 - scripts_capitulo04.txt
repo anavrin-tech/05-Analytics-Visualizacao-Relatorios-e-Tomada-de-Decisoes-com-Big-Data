@@ -1,0 +1,376 @@
+
+/* Primeiro job */
+
+@a  = 
+    SELECT * FROM 
+        (VALUES
+            ("João", 8),
+            ("Maria", 7)
+        ) AS 
+        D(aluno, nota);
+
+OUTPUT @a
+    TO "/data.csv"
+    USING Outputters.Csv();
+
+
+--------------
+
+/* Segundo job */
+
+@searchlog = 
+    EXTRACT UserId          int, 
+            Start           DateTime, 
+            Region          string, 
+            Query           string, 
+            Duration        int, 
+            Urls            string, 
+            ClickedUrls     string
+    FROM @"/Samples/Data/SearchLog.tsv"
+    USING Extractors.Tsv();
+
+OUTPUT @searchlog 
+    TO @"/Samples/Output/SearchLog_output.tsv"
+    USING Outputters.Tsv();
+
+
+--------------
+
+/* Terceiro Job */
+
+@searchlog =
+    EXTRACT UserId          int,
+            Start           DateTime,
+            Region          string,
+            Query           string,
+            Duration        int,
+            Urls            string,
+            ClickedUrls     string
+    /*FROM @in*/
+    FROM "/Samples/Data/SearchLog.tsv"
+    USING Extractors.Tsv(nullEscape:"#NULL#");
+
+@rs1 =
+    SELECT Start, Region, Duration
+    FROM @searchlog
+WHERE Region == "en-gb";
+
+@rs1 =
+    SELECT Start, Region, Duration
+    FROM @rs1
+    WHERE Start <= DateTime.Parse("2012/02/19");
+
+OUTPUT @rs1   
+    /*TO @out*/
+    TO "/Samples/Output/ResultadoConsulta.tsv"
+      USING Outputters.Tsv(quoting:false, dateTimeFormat:null);
+
+
+-----------
+
+/* Quarto Job /*
+
+@searchlog =
+    EXTRACT UserId          int,
+            Start           DateTime,
+            Region          string,
+            Query           string,
+            Duration        int,
+            Urls            string,
+            ClickedUrls     string
+    FROM "/Samples/Data/SearchLog.tsv"
+    USING Extractors.Tsv(nullEscape:"#NULL#");
+
+@rs1 =
+    SELECT Start, Region, Duration
+    FROM @searchlog
+WHERE Region == "en-gb";
+
+OUTPUT @rs1   
+    TO "/Samples/Output/ResultadoConsulta_engb.tsv"
+      USING Outputters.Tsv(quoting:false, dateTimeFormat:null);
+
+@rs2 =
+    SELECT Start, Region, Duration
+    FROM @searchlog
+WHERE Region == "en-us";
+
+OUTPUT @rs2   
+    TO "/Samples/Output/ResultadoConsulta_enus.tsv"
+      USING Outputters.Tsv(quoting:false, dateTimeFormat:null);
+
+-------------
+
+/* Quinto Job: Agregação */
+
+DECLARE @outpref string = "/output/Searchlog-aggregation";
+DECLARE @out1    string = @outpref+"_agg.csv";
+DECLARE @out2    string = @outpref+"_top5agg.csv";
+
+@searchlog =
+    EXTRACT UserId          int,
+            Start           DateTime,
+            Region          string,
+            Query           string,
+            Duration        int?,
+            Urls            string,
+            ClickedUrls     string
+    FROM "/Samples/Data/SearchLog.tsv"
+    USING Extractors.Tsv();
+
+@rs1 =
+    SELECT
+        Region,
+        SUM(Duration) AS TotalDuration
+    FROM @searchlog
+GROUP BY Region;
+
+@res =
+    SELECT *
+    FROM @rs1
+    ORDER BY TotalDuration DESC
+    FETCH 5 ROWS;
+
+OUTPUT @rs1
+    TO @out1
+    ORDER BY TotalDuration DESC
+    USING Outputters.Csv();
+
+OUTPUT @res
+    TO @out2
+    ORDER BY TotalDuration DESC
+    USING Outputters.Csv();
+
+---------------
+
+/* Sexto Job: Erros e Having */
+
+@searchlog =
+    EXTRACT UserId          int,
+            Start           DateTime,
+            Region          string,
+            Query           string,
+            Duration        int?,
+            Urls            string,
+            ClickedUrls     string
+    FROM "/Samples/Data/SearchLog.tsv"
+    USING Extractors.Tsv();
+
+@res =
+    SELECT
+        Region,
+        SUM(Duration) AS TotalDuration
+    FROM @searchlog
+    GROUP BY Region
+    HAVING SUM(Duration) > 200;
+
+OUTPUT @res
+    TO "/output/Searchlog-having.csv"
+    ORDER BY TotalDuration DESC
+    USING Outputters.Csv();
+
+-----------------
+
+/* Baixar arquivo ocorrencias.csv da Segurança Pública de Curitiba, disponível em http://www.curitiba.pr.gov.br/dadosabertos/consulta/?grupo=12
+
+Trocar o encoding para UTF-8, utilizando por exemplo o Notepad++
+
+Executar as consultas abaixo:*/
+
+
+@ocorrencias =
+    EXTRACT ATENDIMENTO_ANO int,
+            ATENDIMENTO_BAIRRO_NOME string,
+            EQUIPAMENTO_URBANO_NOME string,
+            FLAG_EQUIPAMENTO_URBANO char,
+            FLAG_FLAGRANTE char,
+            LOGRADOURO_NOME string,
+            NATUREZA1_DEFESA_CIVIL int?,
+            NATUREZA1_DESCRICAO string,
+            NATUREZA2_DEFESA_CIVIL int?,
+            NATUREZA2_DESCRICAO string,
+            NATUREZA3_DEFESA_CIVIL int?,
+            NATUREZA3_DESCRICAO string,
+            NATUREZA4_DEFESA_CIVIL int?,
+            NATUREZA4_DESCRICAO string,
+            NATUREZA5_DEFESA_CIVIL int?,
+            NATUREZA5_DESCRICAO string,
+            SUBCATEGORIA1_DESCRICAO string,
+            SUBCATEGORIA2_DESCRICAO string,
+            SUBCATEGORIA3_DESCRICAO string,
+            SUBCATEGORIA4_DESCRICAO string,
+            SUBCATEGORIA5_DESCRICAO string,
+            OCORRENCIA_ANO int,
+            OCORRENCIA_CODIGO int,
+            OCORRENCIA_DATA DateTime,
+            OCORRENCIA_DIA_SEMANA string,
+            OCORRENCIA_HORA string,
+            OCORRENCIA_MES int,
+            OPERACAO_DESCRICAO string,
+            ORIGEM_CHAMADO_DESCRICAO string,
+            REGIONAL_FATO_NOME string,
+            SECRETARIA_NOME string,
+            SECRETARIA_SIGLA string,
+            SERVICO_NOME string,
+            SITUACAO_EQUIPE_DESCRICAO string,
+            NUMERO_PROTOCOLO_156 int?
+    FROM "/Samples/Data/ocorrencias2.csv"
+    USING Extractors.Text(delimiter:';', skipFirstNRows:2, encoding: Encoding.UTF8);
+
+@res =
+    SELECT
+        ATENDIMENTO_ANO, ATENDIMENTO_BAIRRO_NOME, NATUREZA1_DESCRICAO, COUNT(*) AS Total
+    FROM @ocorrencias
+    GROUP BY ATENDIMENTO_ANO, ATENDIMENTO_BAIRRO_NOME, NATUREZA1_DESCRICAO;
+
+OUTPUT @res
+    TO "/output/ocorrencias_agrupadas.csv"
+    ORDER BY Total DESC
+    USING Outputters.Csv();
+
+---------------
+
+@ocorrencias =
+    EXTRACT ATENDIMENTO_ANO int,
+            ATENDIMENTO_BAIRRO_NOME string,
+            EQUIPAMENTO_URBANO_NOME string,
+            FLAG_EQUIPAMENTO_URBANO char,
+            FLAG_FLAGRANTE char,
+            LOGRADOURO_NOME string,
+            NATUREZA1_DEFESA_CIVIL int?,
+            NATUREZA1_DESCRICAO string,
+            NATUREZA2_DEFESA_CIVIL int?,
+            NATUREZA2_DESCRICAO string,
+            NATUREZA3_DEFESA_CIVIL int?,
+            NATUREZA3_DESCRICAO string,
+            NATUREZA4_DEFESA_CIVIL int?,
+            NATUREZA4_DESCRICAO string,
+            NATUREZA5_DEFESA_CIVIL int?,
+            NATUREZA5_DESCRICAO string,
+            SUBCATEGORIA1_DESCRICAO string,
+            SUBCATEGORIA2_DESCRICAO string,
+            SUBCATEGORIA3_DESCRICAO string,
+            SUBCATEGORIA4_DESCRICAO string,
+            SUBCATEGORIA5_DESCRICAO string,
+            OCORRENCIA_ANO int,
+            OCORRENCIA_CODIGO int,
+            OCORRENCIA_DATA DateTime,
+            OCORRENCIA_DIA_SEMANA string,
+            OCORRENCIA_HORA string,
+            OCORRENCIA_MES int,
+            OPERACAO_DESCRICAO string,
+            ORIGEM_CHAMADO_DESCRICAO string,
+            REGIONAL_FATO_NOME string,
+            SECRETARIA_NOME string,
+            SECRETARIA_SIGLA string,
+            SERVICO_NOME string,
+            SITUACAO_EQUIPE_DESCRICAO string,
+            NUMERO_PROTOCOLO_156 int?
+    FROM "/Samples/Data/ocorrencias2.csv"
+    USING Extractors.Text(delimiter:';', skipFirstNRows:2, encoding: Encoding.UTF8);
+
+@res =
+    SELECT
+        OCORRENCIA_DIA_SEMANA, COUNT(*) AS Total
+    FROM @ocorrencias
+    WHERE NATUREZA1_DESCRICAO == "Roubo" 
+    GROUP BY OCORRENCIA_DIA_SEMANA;
+
+OUTPUT @res
+    TO "/output/roubos_por_dia_semana.csv"
+    ORDER BY Total DESC
+    USING Outputters.Csv();
+
+-------------
+
+/* Execução de U-SQL no Visual Studio: */
+
+@ocorrencias =
+    EXTRACT ATENDIMENTO_ANO int,
+            ATENDIMENTO_BAIRRO_NOME string,
+            EQUIPAMENTO_URBANO_NOME string,
+            FLAG_EQUIPAMENTO_URBANO char,
+            FLAG_FLAGRANTE char,
+            LOGRADOURO_NOME string,
+            NATUREZA1_DEFESA_CIVIL int?,
+            NATUREZA1_DESCRICAO string,
+            NATUREZA2_DEFESA_CIVIL int?,
+            NATUREZA2_DESCRICAO string,
+            NATUREZA3_DEFESA_CIVIL int?,
+            NATUREZA3_DESCRICAO string,
+            NATUREZA4_DEFESA_CIVIL int?,
+            NATUREZA4_DESCRICAO string,
+            NATUREZA5_DEFESA_CIVIL int?,
+            NATUREZA5_DESCRICAO string,
+            SUBCATEGORIA1_DESCRICAO string,
+            SUBCATEGORIA2_DESCRICAO string,
+            SUBCATEGORIA3_DESCRICAO string,
+            SUBCATEGORIA4_DESCRICAO string,
+            SUBCATEGORIA5_DESCRICAO string,
+            OCORRENCIA_ANO int,
+            OCORRENCIA_CODIGO int,
+            OCORRENCIA_DATA DateTime,
+            OCORRENCIA_DIA_SEMANA string,
+            OCORRENCIA_HORA string,
+            OCORRENCIA_MES int,
+            OPERACAO_DESCRICAO string,
+            ORIGEM_CHAMADO_DESCRICAO string,
+            REGIONAL_FATO_NOME string,
+            SECRETARIA_NOME string,
+            SECRETARIA_SIGLA string,
+            SERVICO_NOME string,
+            SITUACAO_EQUIPE_DESCRICAO string,
+            NUMERO_PROTOCOLO_156 int?
+    FROM "/Samples/Data/ocorrencias2.csv"
+    USING Extractors.Text(delimiter:';', skipFirstNRows:2, encoding: Encoding.UTF8);
+
+@res =
+    SELECT
+        OCORRENCIA_DIA_SEMANA, COUNT(*) AS Total
+    FROM @ocorrencias
+    WHERE NATUREZA1_DESCRICAO == "Roubo" 
+    GROUP BY OCORRENCIA_DIA_SEMANA;
+
+OUTPUT @res
+    TO "/output/roubos_por_dia_semana.csv"
+    ORDER BY Total DESC
+    USING Outputters.Csv();
+
+@res1 =
+    SELECT
+        ATENDIMENTO_BAIRRO_NOME, COUNT(*) AS Total
+    FROM @ocorrencias
+    WHERE NATUREZA1_DESCRICAO == "Roubo" 
+    GROUP BY ATENDIMENTO_BAIRRO_NOME;
+
+OUTPUT @res1
+    TO "/output/roubos_por_bairro.csv"
+    ORDER BY Total DESC
+    USING Outputters.Csv();
+
+-----------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

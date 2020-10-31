@@ -1,0 +1,50 @@
+// U-SQL Database Export Script
+// Generated : 16/05/2018 12:12:44
+// Export Account : datascienceacademy
+// Export Database : Acidentes
+// Export Contents List :
+//  Schemas 1/2 : Brazil
+//  Tables 1/1 : Brazil.Ocorrencias
+// Exported table data and assembly files are saved to 'C:\Users\suema\AppData\Local\USQLDataRoot\Acidentes_export'
+
+// Start of generated U-SQL script
+
+CREATE DATABASE IF NOT EXISTS [Acidentes];
+USE DATABASE [Acidentes];
+
+
+// -- Schemas -- 
+// SCHEMA Brazil 
+CREATE SCHEMA IF NOT EXISTS [Brazil];
+
+
+
+// -- Tables -- 
+// TABLE Ocorrencias 
+CREATE TABLE IF NOT EXISTS [Brazil].[Ocorrencias] 
+(
+    [municipio] System.String
+   ,[regiao] System.String
+   ,[ano] System.Int32
+   ,[mes] System.Int32
+   ,[mes_descricao] System.String
+   ,[sexo] System.String
+   ,[turno] System.String
+   ,[tipo_acidente] System.String
+   ,[tipo_veiculo] System.String
+   ,[faixa_etaria] System.String
+   ,[idade] System.String
+   ,[hora] System.String
+   ,[tipo_vitima] System.String
+   ,[tipo_local_acidente] System.String
+   ,[dia_semana] System.String
+   ,[tipo_via] System.String
+   ,[latitude] System.String
+   ,[longitude] System.String
+   ,[rua_rodovia] System.String
+   ,INDEX [idx_municipio_ano_mes] CLUSTERED (municipio ASC, ano ASC, mes ASC) DISTRIBUTED BY HASH (municipio, ano, mes)
+);
+
+
+
+// End of generated U-SQL script

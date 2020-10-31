@@ -1,0 +1,226 @@
+Variáveis:
+
+Tabela5CidadesComMaioresVendas = 
+
+VAR TotalVendasPorCidade = SUMMARIZECOLUMNS(
+    'Fact Sale'[City Key];
+    "SomaTotal"; SUM('Fact Sale'[Total Including Tax])
+)
+
+VAR TotalVendasPorCidadeEntre10000e20000 = FILTER(
+    TotalVendasPorCidade; 
+    [SomaTotal] >= 10000 && [SomaTotal] <= 20000
+)
+
+RETURN TOPN(
+    5;
+    TotalVendasPorCidadeEntre10000e20000;
+    [SomaTotal]; DESC)
+
+
+-----------------------------
+
+Variáveis com Texto:
+
+TotalVendasComDescricao = 
+
+VAR TotalVendas = SUM('Fact Sale'[Total Including Tax])
+
+VAR Resultado = 
+   IF(TotalVendas > 0; "Vendemos " & TotalVendas & " dólares"; "Não vendemos nada!")
+   
+RETURN Resultado 
+
+-------------------------------
+
+Função Summarize:
+
+EstatisticasVendasPorAnoMesEProvincia = SUMMARIZE(
+    'Fact Sale';
+    'Dimension City'[State Province];
+    'Dimension Date'[Calendar Year Label];
+    'Dimension Date'[Calendar Month Label];
+    "Soma de Vendas"; SUM('Fact Sale'[Total Including Tax]);
+    "Média de Vendas"; AVERAGE('Fact Sale'[Total Including Tax]);
+    "Contagem de Vendas"; COUNT('Fact Sale'[Total Including Tax])
+)
+    
+// soma de vendas; média de vendas e contagem de vendas agrupados por província; ano e mês
+
+------------------------------
+
+Relacionamentos:
+
+VendasPorAnoEProvincia = SUMMARIZE(
+    'Fact Sale';
+    'Dimension City'[State Province];
+    'Dimension Date'[Calendar Year Label];
+    "TotalVendas"; SUM('Fact Sale'[Total Including Tax])
+)
+
+Indicando qual relacionamento utilizar:
+
+VendasPorAnoEProvincia = 
+
+CALCULATETABLE(
+    SUMMARIZE(
+        'Fact Sale';
+        'Dimension City'[State Province];
+        'Dimension Date'[Calendar Year Label];
+        "TotalVendas"; SUM('Fact Sale'[Total Including Tax])
+    );
+    USERELATIONSHIP('Fact Sale'[Invoice Date Key];'Dimension Date'[Date])
+)
+
+(no comando acima estamos fazendo o relacionamento por data da nota fiscal mas também poderia ser utilizado por data de entrega conforme mostrado no vídeo)
+
+------------------------------
+
+Relacionamentos (Exercício)
+
+Contagem de Notas Fiscais = 
+
+CALCULATE(
+                COUNTROWS('Fact Sale');
+                USERELATIONSHIP('Fact Sale'[Invoice Date Key]; 'Dimension Date'[Date])
+)
+
+Contagem de Entregas = 
+
+CALCULATE(
+                COUNTROWS('Fact Sale');
+                USERELATIONSHIP('Fact Sale'[Delivery Date Key]; 'Dimension Date'[Date])
+)
+
+------------------------------
+
+Função SUMMARIZECOLUMNS: 
+
+VendasPorProvinciaAnoEMesDoTerritorioSudoeste = 
+
+SUMMARIZECOLUMNS(
+    'Dimension City'[State Province];
+    'Dimension Date'[Calendar Year Label];
+    'Dimension Date'[Calendar Month Label];
+    FILTER(ALL('Dimension City'[Sales Territory]); 'Dimension City'[Sales Territory] = "Southwest");
+    "TotalVendas"; SUM('Fact Sale'[Total Including Tax]);
+    "MediasVendas"; AVERAGE('Fact Sale'[Total Including Tax])
+)
+
+-------------------------------
+
+Calculando Subtotais: Função ROLLUP
+
+LucroMedioPorCliente = 
+
+SUMMARIZE(
+    'Fact Sale';
+    ROLLUP('Fact Sale'[Customer Key]);
+    "Lucro Médio";FIXED(AVERAGE('Fact Sale'[Profit]);1)
+)
+
+--------------------------------
+
+Calculando Subtotais: Função ISSUBTOTAL
+
+LucroMedioPorCliente = 
+
+SUMMARIZE(
+    'Fact Sale';
+    ROLLUP('Fact Sale'[Customer Key]);
+    "Lucro Médio";FIXED(AVERAGE('Fact Sale'[Profit]);1);
+    "É subtotal?";ISSUBTOTAL('Fact Sale'[Customer Key])
+)
+
+-----------------------------------
+
+CROSSJOIN
+
+CrossJoinPaisesAno = 
+
+SUMMARIZE(
+    CROSSJOIN(
+        VALUES('Dimension City'[Country]);
+        VALUES('Dimension Date'[Fiscal Year Label])
+    );
+    'Dimension City'[Country];
+    'Dimension Date'[Fiscal Year Label];
+    "Total Vendas"; SUM('Fact Sale'[Total Including Tax])
+
+)
+
+
+-------------------------------------
+
+
+NATURALINNERJOIN
+
+VendasComInformacoesCidades = 
+
+VAR TabelaFato = SELECTCOLUMNS(
+    'Fact Sale';
+    "City Key"; 'Fact Sale'[City Key] & "";
+    "Total Vendas"; 'Fact Sale'[Total Including Tax] 
+)
+
+VAR TabelaDimensao = SELECTCOLUMNS(
+    'Dimension City';
+    "City Key"; 'Dimension City'[City Key] & "";
+    "City Name"; 'Dimension City'[City];
+    "Province"; 'Dimension City'[State Province];
+    "Population"; 'Dimension City'[Latest Recorded Population]
+)
+
+RETURN NATURALINNERJOIN(TabelaFato;TabelaDimensao)
+    
+
+--------------------------------------
+
+Comparacao com Mês Anterior usando DATEADD
+
+ComparacaoMesAnterior = 
+    CALCULATE(
+        SUM('Fact Sale'[Total Including Tax]);
+        DATEADD('Dimension Date'[Date]; -1; MONTH)
+    )
+
+---------------------------------------
+
+Última compra do cliente utilizando LASTDATE
+
+DataUltimaCompra = 
+    
+VAR CustomerKey = 'Fact Sale'[Customer Key]
+VAR InvoiceDateKey = 'Fact Sale'[Invoice Date Key]
+
+RETURN
+  
+  CALCULATE(
+      LASTDATE('Fact Sale'[Invoice Date Key]);
+      FILTER(
+          'Fact Sale';
+          'Fact Sale'[Customer Key] = CustomerKey && 'Fact Sale'[Invoice Date Key] < InvoiceDateKey
+      )
+  )
+          
+
+---------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
